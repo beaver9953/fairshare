@@ -12,13 +12,10 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   ]);
 }
 
-// Safely parses JSON from AI responses, stripping markdown if necessary
 function safeJsonParse(text: string) {
   try {
-    // First attempt: standard parse
     return JSON.parse(text);
   } catch (e) {
-    // Second attempt: strip markdown code blocks and try again
     const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
     return JSON.parse(cleaned);
   }
@@ -92,6 +89,7 @@ Ensure "totalCost" is a number. Do not include any markdown formatting or extra 
           : ["google/gemini-3.8-flash"];
 
         const openRouterPromise = openrouter.chat.completions.create({
+          // @ts-ignore - OpenRouter accepts the 'models' array for fallbacks, but the OpenAI SDK types only allow 'model'
           models: fallbackModels,
           messages: [
             {
@@ -103,12 +101,12 @@ Ensure "totalCost" is a number. Do not include any markdown formatting or extra 
             },
           ],
           response_format: { type: "json_object" },
-          max_tokens: 500, // Increased from 150 to ensure JSON completes
+          max_tokens: 500,
         });
 
-        const response = await withTimeout(openRouterPromise, 10000);
+        const response = await withTimeout(openRouterPromise, 10000) as any;
 
-        const responseText = response.choices[0]?.message?.content;
+        const responseText = response.choices?.[0]?.message?.content;
         if (responseText) {
           console.log(`[AI] Fallback (OpenRouter) extraction successful.`);
           return NextResponse.json({

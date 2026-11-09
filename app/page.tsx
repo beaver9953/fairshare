@@ -31,7 +31,7 @@ interface LedgerEntry {
   splitRule: string;
   fairShare: number;
   amountPaid: number;
-  balance: number; 
+  balance: number;
 }
 
 const initialData: LedgerEntry[] = [
@@ -70,9 +70,10 @@ export default function FairShareDashboard() {
     {
       field: "balance", headerName: "Balance (£)", flex: 1, minWidth: 120, filter: "agNumberColumnFilter",
       cellStyle: (params) => {
-        if (params.value > 0) return { color: "#dc2626", fontWeight: "bold" };
-        if (params.value < 0) return { color: "#16a34a", fontWeight: "bold" };
-        return { color: "#6b7280" };
+        // Return a strictly typed CellStyle object
+        if (params.value > 0) return { color: "#dc2626", fontWeight: "bold" as const };
+        if (params.value < 0) return { color: "#16a34a", fontWeight: "bold" as const };
+        return { color: "#6b7280", fontWeight: "normal" as const };
       },
       valueFormatter: (params) => {
         const val = params.value as number;
@@ -82,8 +83,6 @@ export default function FairShareDashboard() {
       },
     },
   ];
-
-  // --- ACTIONS ---
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -169,36 +168,27 @@ export default function FairShareDashboard() {
   const logInvisibleLabor = (category: string, cost: number, creditHours: number = 0) => {
     const newEntry: LedgerEntry = {
       id: Date.now().toString(),
-      member: "Charlie", // Charlie is buying things
-      email: "sb-sgtbp53274128@personal.example.com",
+      member: "Charlie", email: "sb-sgtbp53274128@personal.example.com",
       category: category,
       description: creditHours > 0 ? `${category} (+ ${creditHours}hrs mental load)` : `Purchased ${category}`,
-      totalCost: cost,
-      splitRule: "Equal (3-way)",
-      fairShare: cost / 3,
-      amountPaid: cost,
-      balance: (cost / 3) - cost, // Charlie overpaid
+      totalCost: cost, splitRule: "Equal (3-way)",
+      fairShare: cost / 3, amountPaid: cost,
+      balance: (cost / 3) - cost,
     };
     setRowData((prev) => [...prev, newEntry]);
     setSettlementStatus(`Logged: ${category} (£${cost.toFixed(2)})`);
   };
 
   const simulateIoT = () => {
-    // Simulates 5kWh of electricity used by Alex at £0.30/kWh
     const kwh = 5;
     const rate = 0.30;
-    const cost = kwh * rate; // £1.50
+    const cost = kwh * rate;
     const newEntry: LedgerEntry = {
       id: Date.now().toString(),
-      member: "Alex",
-      email: "sb-btftl53627589@buyer-persona.example.com",
-      category: "IoT Electricity",
-      description: `Smart Plug: ${kwh}kWh @ £${rate}/kWh`,
-      totalCost: cost,
-      splitRule: "Usage Weighted",
-      fairShare: cost, // Alex used it, Alex pays
-      amountPaid: 0,
-      balance: cost, // Alex owes it
+      member: "Alex", email: "sb-btftl53627589@buyer-persona.example.com",
+      category: "IoT Electricity", description: `Smart Plug: ${kwh}kWh @ £${rate}/kWh`,
+      totalCost: cost, splitRule: "Usage Weighted",
+      fairShare: cost, amountPaid: 0, balance: cost,
     };
     setRowData((prev) => [...prev, newEntry]);
     setSettlementStatus(`IoT Stream: Logged ${kwh}kWh usage for Alex.`);
@@ -208,7 +198,6 @@ export default function FairShareDashboard() {
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         
-        {/* Header & AI Upload */}
         <div className="flex justify-between items-end">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight">FairShare Dashboard</h1>
@@ -222,7 +211,6 @@ export default function FairShareDashboard() {
           </div>
         </div>
 
-        {/* Quick Actions (Invisible Labor & IoT) */}
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex gap-4 items-center">
           <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider mr-2">Low-Friction Logging:</span>
           <button onClick={() => logInvisibleLabor("Groceries", 45.00)} className="px-4 py-2 bg-indigo-50 text-indigo-700 font-medium rounded-lg hover:bg-indigo-100 transition-colors">
@@ -237,7 +225,6 @@ export default function FairShareDashboard() {
           </button>
         </div>
 
-        {/* Member Balances */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {Object.entries(memberBalances).map(([name, data]) => (
             <div key={name} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -265,7 +252,6 @@ export default function FairShareDashboard() {
           ))}
         </div>
 
-        {/* Status Banner */}
         {settlementStatus && (
           <div className={`p-4 rounded-lg border text-sm font-medium ${
             settlementStatus.startsWith("Success") || settlementStatus.startsWith("Logged") || settlementStatus.startsWith("IoT") ? "bg-green-50 border-green-200 text-green-800" : settlementStatus.startsWith("Error") ? "bg-red-50 border-red-200 text-red-800" : "bg-blue-50 border-blue-200 text-blue-800"
@@ -274,7 +260,6 @@ export default function FairShareDashboard() {
           </div>
         )}
 
-        {/* The Ledger */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
             <h2 className="text-lg font-semibold text-gray-900">The Fairness Ledger</h2>

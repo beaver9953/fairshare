@@ -1,7 +1,8 @@
-// app/page.tsx
+// app/dashboard/page.tsx
 "use client";
 
 import { useState, useMemo, useRef } from "react";
+import Link from "next/link"; // <-- Added this import
 import { AgGridReact } from "ag-grid-react";
 import {
   ColDef,
@@ -70,7 +71,6 @@ export default function FairShareDashboard() {
     {
       field: "balance", headerName: "Balance (£)", flex: 1, minWidth: 120, filter: "agNumberColumnFilter",
       cellStyle: (params) => {
-        // Return a strictly typed CellStyle object
         if (params.value > 0) return { color: "#dc2626", fontWeight: "bold" as const };
         if (params.value < 0) return { color: "#16a34a", fontWeight: "bold" as const };
         return { color: "#6b7280", fontWeight: "normal" as const };
@@ -198,8 +198,20 @@ export default function FairShareDashboard() {
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         
+        {/* Header & AI Upload */}
         <div className="flex justify-between items-end">
           <div>
+            {/* NEW BACK TO HOME LINK */}
+            <Link 
+              href="/" 
+              className="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors mb-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+              </svg>
+              Back to Home
+            </Link>
+
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight">FairShare Dashboard</h1>
             <p className="text-gray-500 mt-2">Continuous, usage-aware settlement engine for shared households.</p>
           </div>

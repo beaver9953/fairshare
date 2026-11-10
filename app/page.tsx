@@ -32,8 +32,8 @@ export default function LandingPage() {
           </span>
         </h1>
         <p className="text-xl text-slate-400 max-w-3xl mx-auto mb-12 leading-relaxed">
-          Existing apps require manual data entry, which fails because humans are exhausted. 
-          FairShare is a continuous, usage-aware settlement engine that ingests hard data, makes invisible costs visible, and settles the debt in real-time via PayPal.
+          The mental load of remembering bills, buying toilet paper, and managing utilities usually falls on one person. Traditional expense apps require manual entry, meaning the burden stays hidden and resentment builds. 
+          <strong className="text-white font-medium"> FairShare is a continuous settlement engine that quantifies the invisible and settles the debt in real-time via PayPal.</strong> We replace nagging with math.
         </p>
         <div className="flex justify-center gap-4">
           <Link 
@@ -61,9 +61,9 @@ export default function LandingPage() {
             <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center mb-6">
               <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
             </div>
-            <h3 className="text-xl font-bold text-white mb-3">The Structural Inequity</h3>
+            <h3 className="text-xl font-bold text-white mb-3">The Invisible Burden</h3>
             <p className="text-slate-400 leading-relaxed">
-              One roommate buys the toilet paper, remembers the water bill, and cleans the kitchen. The math is hidden, so resentment builds silently until a conflict erupts.
+              One roommate buys the toilet paper, remembers the water bill, and cleans the kitchen. The math is hidden, so the person doing the labor absorbs the cost and the resentment. 
             </p>
           </div>
 
@@ -71,9 +71,9 @@ export default function LandingPage() {
             <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center mb-6">
               <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
             </div>
-            <h3 className="text-xl font-bold text-white mb-3">Zero-Friction Ingestion</h3>
+            <h3 className="text-xl font-bold text-white mb-3">Zero-Friction Data</h3>
             <p className="text-slate-400 leading-relaxed">
-              If logging takes more than 5 seconds, it won't happen. We use AI multimodal document parsing for paper bills, 1-tap logging for groceries, and simulated IoT smart-plug feeds.
+              If logging takes more than 5 seconds, it won't happen. We ingest continuous IoT smart-plug usage, parse paper bills with AI, and use 1-tap buttons for mental load.
             </p>
           </div>
 
@@ -83,7 +83,7 @@ export default function LandingPage() {
             </div>
             <h3 className="text-xl font-bold text-white mb-3">Executed Settlement</h3>
             <p className="text-slate-400 leading-relaxed">
-              Insight without action is useless. FairShare doesn't just give advice. It uses the PayPal API to fire off Invoices for those who owe, and Payouts to reimburse those who overpaid.
+              Insight without action is useless. The Fairness Ledger shows the math, and then fires off real PayPal Invoices for those who owe, and real PayPal Payouts to reimburse those who overpaid.
             </p>
           </div>
 

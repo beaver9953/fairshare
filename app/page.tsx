@@ -1,275 +1,94 @@
 // app/page.tsx
-"use client";
+import Link from "next/link";
 
-import { useState, useMemo, useRef } from "react";
-import { AgGridReact } from "ag-grid-react";
-import {
-  ColDef,
-  ModuleRegistry,
-  ClientSideRowModelModule,
-  TextFilterModule,
-  NumberFilterModule,
-  CellStyleModule,
-} from "ag-grid-community";
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-quartz.css";
-
-ModuleRegistry.registerModules([
-  ClientSideRowModelModule,
-  TextFilterModule,
-  NumberFilterModule,
-  CellStyleModule,
-]);
-
-interface LedgerEntry {
-  id: string;
-  member: string;
-  email: string;
-  category: string;
-  description: string;
-  totalCost: number;
-  splitRule: string;
-  fairShare: number;
-  amountPaid: number;
-  balance: number;
-}
-
-const initialData: LedgerEntry[] = [
-  { id: "1", member: "Alex", email: "sb-btftl53627589@buyer-persona.example.com", category: "Electricity", description: "October Utility Bill", totalCost: 150.0, splitRule: "Equal (3-way)", fairShare: 50.0, amountPaid: 0.0, balance: 50.0 },
-  { id: "2", member: "Beaven", email: "sb-uiepi53520867@business.example.com", category: "Electricity", description: "October Utility Bill", totalCost: 150.0, splitRule: "Equal (3-way)", fairShare: 50.0, amountPaid: 0.0, balance: 50.0 },
-  { id: "3", member: "Charlie", email: "sb-sgtbp53274128@personal.example.com", category: "Electricity", description: "October Utility Bill", totalCost: 150.0, splitRule: "Equal (3-way)", fairShare: 50.0, amountPaid: 150.0, balance: -100.0 },
-];
-
-export default function FairShareDashboard() {
-  const [rowData, setRowData] = useState<LedgerEntry[]>(initialData);
-  const [isLoading, setIsLoading] = useState(false);
-  const [settlementStatus, setSettlementStatus] = useState<string | null>(null);
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isExtracting, setIsExtracting] = useState(false);
-
-  const memberBalances = useMemo(() => {
-    const balances: Record<string, { email: string; totalBalance: number }> = {};
-    rowData.forEach((row) => {
-      if (!balances[row.member]) {
-        balances[row.member] = { email: row.email, totalBalance: 0 };
-      }
-      balances[row.member].totalBalance += row.balance;
-    });
-    return balances;
-  }, [rowData]);
-
-  const colDefs: ColDef<LedgerEntry>[] = [
-    { field: "member", headerName: "Roommate", flex: 1, minWidth: 100 },
-    { field: "category", headerName: "Category", flex: 1, minWidth: 120 },
-    { field: "description", headerName: "Description", flex: 2, minWidth: 200 },
-    { field: "totalCost", headerName: "Total (£)", flex: 1, minWidth: 100, valueFormatter: (p) => p.value.toFixed(2), filter: "agNumberColumnFilter" },
-    { field: "splitRule", headerName: "Split Rule", flex: 1, minWidth: 120 },
-    { field: "fairShare", headerName: "Fair Share (£)", flex: 1, minWidth: 120, valueFormatter: (p) => p.value.toFixed(2), filter: "agNumberColumnFilter" },
-    { field: "amountPaid", headerName: "Paid (£)", flex: 1, minWidth: 100, valueFormatter: (p) => p.value.toFixed(2), filter: "agNumberColumnFilter" },
-    {
-      field: "balance", headerName: "Balance (£)", flex: 1, minWidth: 120, filter: "agNumberColumnFilter",
-      cellStyle: (params) => {
-        // Return a strictly typed CellStyle object
-        if (params.value > 0) return { color: "#dc2626", fontWeight: "bold" as const };
-        if (params.value < 0) return { color: "#16a34a", fontWeight: "bold" as const };
-        return { color: "#6b7280", fontWeight: "normal" as const };
-      },
-      valueFormatter: (params) => {
-        const val = params.value as number;
-        if (val > 0) return `+£${val.toFixed(2)}`;
-        if (val < 0) return `-£${Math.abs(val).toFixed(2)}`;
-        return `£0.00`;
-      },
-    },
-  ];
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsExtracting(true);
-    setSettlementStatus("AI is reading the document...");
-
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      try {
-        const response = await fetch("/api/extract", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64: reader.result }),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
-
-        const newEntry: LedgerEntry = {
-          id: Date.now().toString(),
-          member: "Alex", email: "sb-btftl53627589@buyer-persona.example.com",
-          category: data.data.category, description: data.data.description,
-          totalCost: data.data.totalCost, splitRule: "Equal (3-way)",
-          fairShare: data.data.totalCost / 3, amountPaid: data.data.totalCost,
-          balance: (data.data.totalCost / 3) - data.data.totalCost,
-        };
-        setRowData((prev) => [...prev, newEntry]);
-        setSettlementStatus(`Success! Extracted ${data.data.category} for £${data.data.totalCost.toFixed(2)}`);
-      } catch (error) {
-        setSettlementStatus(`Error: ${error instanceof Error ? error.message : "Failed to process bill"}`);
-      } finally {
-        setIsExtracting(false);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleSettle = async (memberName: string, balance: number) => {
-    if (balance <= 0) return;
-    const member = memberBalances[memberName];
-    setIsLoading(true);
-    setSettlementStatus(`Generating PayPal Invoice for ${memberName}...`);
-
-    try {
-      const response = await fetch("/api/settle", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: member.email, amount: balance, reason: `FairShare Settlement for ${memberName}` }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      setSettlementStatus(`Success! Invoice ${data.invoiceId} sent to ${memberName}.`);
-    } catch (error) {
-      setSettlementStatus(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleReimburse = async (memberName: string, balance: number) => {
-    if (balance >= 0) return;
-    const member = memberBalances[memberName];
-    setIsLoading(true);
-    setSettlementStatus(`Executing PayPal Payout to ${memberName}...`);
-
-    try {
-      const response = await fetch("/api/payout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: member.email, amount: Math.abs(balance), reason: `FairShare Reimbursement for ${memberName}` }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      setSettlementStatus(`Success! Payout dispatched to ${memberName}. Batch ID: ${data.payoutBatchId}`);
-    } catch (error) {
-      setSettlementStatus(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const logInvisibleLabor = (category: string, cost: number, creditHours: number = 0) => {
-    const newEntry: LedgerEntry = {
-      id: Date.now().toString(),
-      member: "Charlie", email: "sb-sgtbp53274128@personal.example.com",
-      category: category,
-      description: creditHours > 0 ? `${category} (+ ${creditHours}hrs mental load)` : `Purchased ${category}`,
-      totalCost: cost, splitRule: "Equal (3-way)",
-      fairShare: cost / 3, amountPaid: cost,
-      balance: (cost / 3) - cost,
-    };
-    setRowData((prev) => [...prev, newEntry]);
-    setSettlementStatus(`Logged: ${category} (£${cost.toFixed(2)})`);
-  };
-
-  const simulateIoT = () => {
-    const kwh = 5;
-    const rate = 0.30;
-    const cost = kwh * rate;
-    const newEntry: LedgerEntry = {
-      id: Date.now().toString(),
-      member: "Alex", email: "sb-btftl53627589@buyer-persona.example.com",
-      category: "IoT Electricity", description: `Smart Plug: ${kwh}kWh @ £${rate}/kWh`,
-      totalCost: cost, splitRule: "Usage Weighted",
-      fairShare: cost, amountPaid: 0, balance: cost,
-    };
-    setRowData((prev) => [...prev, newEntry]);
-    setSettlementStatus(`IoT Stream: Logged ${kwh}kWh usage for Alex.`);
-  };
-
+export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        
-        <div className="flex justify-between items-end">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">FairShare Dashboard</h1>
-            <p className="text-gray-500 mt-2">Continuous, usage-aware settlement engine for shared households.</p>
+    <main className="min-h-screen bg-slate-950 text-slate-200 selection:bg-indigo-500 selection:text-white">
+      {/* Navigation */}
+      <nav className="flex justify-between items-center px-8 py-6 max-w-7xl mx-auto">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/30">
+            F
           </div>
-          <div>
-            <input type="file" accept="image/*,application/pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
-            <button onClick={() => fileInputRef.current?.click()} disabled={isExtracting} className="px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-lg shadow-sm transition-all flex items-center gap-2 disabled:bg-gray-400">
-              {isExtracting ? "AI Extracting..." : "Upload Bill (AI Extraction)"}
-            </button>
-          </div>
+          <span className="text-xl font-bold tracking-tight text-white">FairShare</span>
         </div>
+        <Link 
+          href="/dashboard" 
+          className="px-5 py-2.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-sm font-medium transition-all"
+        >
+          Launch App
+        </Link>
+      </nav>
 
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex gap-4 items-center">
-          <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider mr-2">Low-Friction Logging:</span>
-          <button onClick={() => logInvisibleLabor("Groceries", 45.00)} className="px-4 py-2 bg-indigo-50 text-indigo-700 font-medium rounded-lg hover:bg-indigo-100 transition-colors">
-            + Groceries (£45)
-          </button>
-          <button onClick={() => logInvisibleLabor("Deep Cleaning", 0, 2)} className="px-4 py-2 bg-indigo-50 text-indigo-700 font-medium rounded-lg hover:bg-indigo-100 transition-colors">
-            + Mental Load (2 hrs)
-          </button>
-          <button onClick={simulateIoT} className="px-4 py-2 bg-emerald-50 text-emerald-700 font-medium rounded-lg hover:bg-emerald-100 transition-colors flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Simulate IoT Feed
-          </button>
+      {/* Hero Section */}
+      <section className="max-w-5xl mx-auto px-8 pt-24 pb-32 text-center">
+        <div className="inline-block px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-sm font-semibold mb-8 tracking-wide uppercase">
+          PayPal AI Hackathon 2026
         </div>
+        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white mb-8 leading-tight">
+          Roommates don't fight about money.<br />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">
+            They fight about invisible labor.
+          </span>
+        </h1>
+        <p className="text-xl text-slate-400 max-w-3xl mx-auto mb-12 leading-relaxed">
+          Existing apps require manual data entry, which fails because humans are exhausted. 
+          FairShare is a continuous, usage-aware settlement engine that ingests hard data, makes invisible costs visible, and settles the debt in real-time via PayPal.
+        </p>
+        <div className="flex justify-center gap-4">
+          <Link 
+            href="/dashboard" 
+            className="px-8 py-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-lg shadow-lg shadow-indigo-500/25 transition-all transform hover:-translate-y-1"
+          >
+            Enter the FairShare OS
+          </Link>
+          <a 
+            href="https://github.com/beaver9953/fairshare" 
+            target="_blank" 
+            rel="noreferrer"
+            className="px-8 py-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-lg transition-all"
+          >
+            View Source
+          </a>
+        </div>
+      </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {Object.entries(memberBalances).map(([name, data]) => (
-            <div key={name} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900">{name}</h3>
-              <p className="text-sm text-gray-500 mb-4">{data.email}</p>
-              <div className="flex justify-between items-end">
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Net Position</p>
-                  <p className={`text-2xl font-bold ${data.totalBalance > 0 ? "text-red-600" : data.totalBalance < 0 ? "text-green-600" : "text-gray-600"}`}>
-                    {data.totalBalance > 0 ? "+" : ""}£{Math.abs(data.totalBalance).toFixed(2)}
-                  </p>
-                </div>
-                {data.totalBalance > 0 && (
-                  <button onClick={() => handleSettle(name, data.totalBalance)} disabled={isLoading} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
-                    Settle (Invoice)
-                  </button>
-                )}
-                {data.totalBalance < 0 && (
-                  <button onClick={() => handleReimburse(name, data.totalBalance)} disabled={isLoading} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">
-                    Reimburse (Payout)
-                  </button>
-                )}
-              </div>
+      {/* The Problem / Solution Grid */}
+      <section className="max-w-7xl mx-auto px-8 pb-32">
+        <div className="grid md:grid-cols-3 gap-8">
+          
+          <div className="p-8 rounded-2xl bg-slate-900 border border-slate-800">
+            <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center mb-6">
+              <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
             </div>
-          ))}
-        </div>
+            <h3 className="text-xl font-bold text-white mb-3">The Structural Inequity</h3>
+            <p className="text-slate-400 leading-relaxed">
+              One roommate buys the toilet paper, remembers the water bill, and cleans the kitchen. The math is hidden, so resentment builds silently until a conflict erupts.
+            </p>
+          </div>
 
-        {settlementStatus && (
-          <div className={`p-4 rounded-lg border text-sm font-medium ${
-            settlementStatus.startsWith("Success") || settlementStatus.startsWith("Logged") || settlementStatus.startsWith("IoT") ? "bg-green-50 border-green-200 text-green-800" : settlementStatus.startsWith("Error") ? "bg-red-50 border-red-200 text-red-800" : "bg-blue-50 border-blue-200 text-blue-800"
-          }`}>
-            {settlementStatus}
+          <div className="p-8 rounded-2xl bg-slate-900 border border-slate-800">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center mb-6">
+              <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            </div>
+            <h3 className="text-xl font-bold text-white mb-3">Zero-Friction Ingestion</h3>
+            <p className="text-slate-400 leading-relaxed">
+              If logging takes more than 5 seconds, it won't happen. We use AI multimodal document parsing for paper bills, 1-tap logging for groceries, and simulated IoT smart-plug feeds.
+            </p>
           </div>
-        )}
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-lg font-semibold text-gray-900">The Fairness Ledger</h2>
-            <p className="text-sm text-gray-500">Complete transparency on every calculation and credit.</p>
+          <div className="p-8 rounded-2xl bg-slate-900 border border-slate-800">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-6">
+              <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <h3 className="text-xl font-bold text-white mb-3">Executed Settlement</h3>
+            <p className="text-slate-400 leading-relaxed">
+              Insight without action is useless. FairShare doesn't just give advice. It uses the PayPal API to fire off Invoices for those who owe, and Payouts to reimburse those who overpaid.
+            </p>
           </div>
-          <div className="ag-theme-quartz w-full" style={{ height: 400 }}>
-            <AgGridReact theme="legacy" rowData={rowData} columnDefs={colDefs} defaultColDef={{ sortable: true, filter: true, resizable: true }} />
-          </div>
+
         </div>
-      </div>
+      </section>
     </main>
   );
 }
